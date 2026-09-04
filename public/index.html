@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TurnosRed - Tiempo real</title>
+</head>
+
+<body>
+  <h1>TurnosRed</h1>
+  <h2>Eventos en tiempo real</h2>
+
+  <ul id="eventos"></ul>
+
+  <script src="/socket.io/socket.io.js"></script>
+
+  <script>
+    const socket = io();
+
+    const lista = document.getElementById("eventos");
+
+    function mostrarEvento(texto, turno) {
+      const elemento = document.createElement("li");
+
+      elemento.textContent =
+        texto + ": " + JSON.stringify(turno);
+
+      lista.appendChild(elemento);
+    }
+
+    socket.on("connect", () => {
+      console.log("Conectado al servidor");
+    });
+
+    socket.on("turno:nuevo", (turno) => {
+      mostrarEvento("Nuevo turno", turno);
+    });
+
+    socket.on("turno:actualizado", (turno) => {
+      mostrarEvento("Turno actualizado", turno);
+    });
+
+    socket.on("turno:eliminado", (turno) => {
+      mostrarEvento("Turno eliminado", turno);
+    });
+  </script>
+</body>
+</html>
