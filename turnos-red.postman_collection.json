@@ -1,0 +1,421 @@
+{
+  "info": {
+    "_postman_id": "a49a07e9-a7e0-4b89-9c25-3cff987b4362",
+    "name": "TurnosRed - Actividad 2",
+    "description": "Colección de pruebas automatizadas para los recursos Turnos y Médicos. Incluye CRUD, validaciones, errores y filtros mediante query parameters.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+    { "key": "turnoId", "value": "101", "type": "string" },
+    { "key": "medicoId", "value": "2", "type": "string" },
+    { "key": "createdTurnoId", "value": "", "type": "string" },
+    { "key": "createdMedicoId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Turnos",
+      "item": [
+        {
+          "name": "GET - Listar turnos",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "let data; pm.test('Respuesta JSON válida', () => { data = pm.response.json(); });",
+            "pm.test('La respuesta es un array', () => pm.expect(data).to.be.an('array'));"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/turnos", "host": ["{{baseUrl}}"], "path": ["turnos"] } },
+          "response": [{
+            "name": "200 - Lista de turnos",
+            "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/turnos", "host": ["{{baseUrl}}"], "path": ["turnos"] } },
+            "status": "OK", "code": 200, "_postman_previewlanguage": "json",
+            "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }], "cookie": [],
+            "body": "[{\n  \"id\": 101,\n  \"paciente\": \"pedro gonzález\",\n  \"documento\": \"31654210\",\n  \"especialidad\": \"Pediatría\",\n  \"fecha\": \"2026-08-14\",\n  \"hora\": \"10:00\",\n  \"confirmado\": true,\n  \"medicoId\": 2\n}]"
+          }]
+        },
+        {
+          "name": "GET - Obtener turno por ID",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "let data; pm.test('Respuesta JSON válida', () => { data = pm.response.json(); });",
+            "pm.test('Contiene campos de Turno', () => { pm.expect(data).to.include.all.keys('id', 'paciente', 'documento', 'especialidad', 'fecha', 'hora', 'confirmado', 'medicoId'); pm.expect(data.id).to.eql(Number(pm.collectionVariables.get('turnoId'))); });"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/turnos/{{turnoId}}", "host": ["{{baseUrl}}"], "path": ["turnos", "{{turnoId}}"] } },
+          "response": [{
+            "name": "200 - Turno encontrado",
+            "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/turnos/101", "host": ["{{baseUrl}}"], "path": ["turnos", "101"] } },
+            "status": "OK", "code": 200, "_postman_previewlanguage": "json",
+            "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }], "cookie": [],
+            "body": "{\n  \"id\": 101,\n  \"paciente\": \"pedro gonzález\",\n  \"documento\": \"31654210\",\n  \"especialidad\": \"Pediatría\",\n  \"fecha\": \"2026-08-14\",\n  \"hora\": \"10:00\",\n  \"confirmado\": true,\n  \"medicoId\": 2\n}"
+          }]
+        },
+        {
+          "name": "POST - Crear turno",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('createdTurnoId', Date.now().toString());"] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('Status 201', () => pm.response.to.have.status(201));",
+              "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+              "let data; pm.test('Respuesta JSON válida', () => { data = pm.response.json(); });",
+              "pm.test('Devuelve el turno creado', () => { pm.expect(data).to.include.all.keys('id', 'paciente', 'documento', 'especialidad', 'fecha', 'hora', 'confirmado', 'medicoId'); pm.expect(data.paciente).to.eql('Paciente Postman'); });",
+              "pm.collectionVariables.set('createdTurnoId', data.id.toString());"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": {{createdTurnoId}},\n  \"paciente\": \"Paciente Postman\",\n  \"documento\": \"30111222\",\n  \"especialidad\": \"Pediatría\",\n  \"fecha\": \"2026-09-15\",\n  \"hora\": \"09:30\",\n  \"confirmado\": true,\n  \"medicoId\": {{medicoId}},\n  \"observaciones\": \"Creado desde Postman\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/turnos", "host": ["{{baseUrl}}"], "path": ["turnos"] }
+          },
+          "response": [{
+            "name": "201 - Turno creado",
+            "originalRequest": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"id\": 1700000000001,\n  \"paciente\": \"Paciente Postman\",\n  \"documento\": \"30111222\",\n  \"especialidad\": \"Pediatría\",\n  \"fecha\": \"2026-09-15\",\n  \"hora\": \"09:30\",\n  \"confirmado\": true,\n  \"medicoId\": 2,\n  \"observaciones\": \"Creado desde Postman\"\n}", "options": { "raw": { "language": "json" } } }, "url": { "raw": "{{baseUrl}}/turnos", "host": ["{{baseUrl}}"], "path": ["turnos"] } },
+            "status": "Created", "code": 201, "_postman_previewlanguage": "json",
+            "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }], "cookie": [],
+            "body": "{\n  \"id\": 1700000000001,\n  \"paciente\": \"Paciente Postman\",\n  \"documento\": \"30111222\",\n  \"especialidad\": \"Pediatría\",\n  \"fecha\": \"2026-09-15\",\n  \"hora\": \"09:30\",\n  \"confirmado\": true,\n  \"medicoId\": 2,\n  \"observaciones\": \"Creado desde Postman\"\n}"
+          }]
+        },
+        {
+          "name": "PUT - Actualizar turno creado",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "let data; pm.test('Respuesta JSON válida', () => { data = pm.response.json(); });",
+            "pm.test('Devuelve campos actualizados', () => { pm.expect(data.id).to.eql(Number(pm.collectionVariables.get('createdTurnoId'))); pm.expect(data.paciente).to.eql('Paciente Postman Actualizado'); pm.expect(data.confirmado).to.eql(false); });"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": {{createdTurnoId}},\n  \"paciente\": \"Paciente Postman Actualizado\",\n  \"documento\": \"30111222\",\n  \"especialidad\": \"Pediatría\",\n  \"fecha\": \"2026-09-16\",\n  \"hora\": \"10:15\",\n  \"confirmado\": false,\n  \"medicoId\": {{medicoId}},\n  \"observaciones\": \"Actualizado desde Postman\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/turnos/{{createdTurnoId}}", "host": ["{{baseUrl}}"], "path": ["turnos", "{{createdTurnoId}}"] }
+          },
+          "response": [{
+            "name": "200 - Turno actualizado",
+            "originalRequest": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"id\": 1700000000001,\n  \"paciente\": \"Paciente Postman Actualizado\",\n  \"documento\": \"30111222\",\n  \"especialidad\": \"Pediatría\",\n  \"fecha\": \"2026-09-16\",\n  \"hora\": \"10:15\",\n  \"confirmado\": false,\n  \"medicoId\": 2\n}", "options": { "raw": { "language": "json" } } }, "url": { "raw": "{{baseUrl}}/turnos/1700000000001", "host": ["{{baseUrl}}"], "path": ["turnos", "1700000000001"] } },
+            "status": "OK", "code": 200, "_postman_previewlanguage": "json",
+            "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }], "cookie": [],
+            "body": "{\n  \"id\": 1700000000001,\n  \"paciente\": \"Paciente Postman Actualizado\",\n  \"documento\": \"30111222\",\n  \"especialidad\": \"Pediatría\",\n  \"fecha\": \"2026-09-16\",\n  \"hora\": \"10:15\",\n  \"confirmado\": false,\n  \"medicoId\": 2\n}"
+          }]
+        },
+        {
+          "name": "DELETE - Eliminar turno creado",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 204', () => pm.response.to.have.status(204));",
+            "pm.test('La respuesta no tiene cuerpo', () => pm.expect(pm.response.text()).to.eql(''));"
+          ] } }],
+          "request": { "method": "DELETE", "header": [], "url": { "raw": "{{baseUrl}}/turnos/{{createdTurnoId}}", "host": ["{{baseUrl}}"], "path": ["turnos", "{{createdTurnoId}}"] } },
+          "response": [{
+            "name": "204 - Turno eliminado",
+            "originalRequest": { "method": "DELETE", "header": [], "url": { "raw": "{{baseUrl}}/turnos/1700000000001", "host": ["{{baseUrl}}"], "path": ["turnos", "1700000000001"] } },
+            "status": "No Content", "code": 204, "_postman_previewlanguage": "text", "header": [], "cookie": [], "body": ""
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Médicos",
+      "item": [
+        {
+          "name": "GET - Listar médicos",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "let data; pm.test('Respuesta JSON válida', () => { data = pm.response.json(); });",
+            "pm.test('La respuesta es un array', () => pm.expect(data).to.be.an('array'));"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/medicos", "host": ["{{baseUrl}}"], "path": ["medicos"] } },
+          "response": [{
+            "name": "200 - Lista de médicos",
+            "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/medicos", "host": ["{{baseUrl}}"], "path": ["medicos"] } },
+            "status": "OK", "code": 200, "_postman_previewlanguage": "json",
+            "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }], "cookie": [],
+            "body": "[{\n  \"id\": 2,\n  \"nombre\": \"Carlos Rojas\",\n  \"especialidad\": \"Pediatría\",\n  \"disponible\": true\n}]"
+          }]
+        },
+        {
+          "name": "GET - Obtener médico por ID",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "let data; pm.test('Respuesta JSON válida', () => { data = pm.response.json(); });",
+            "pm.test('Contiene campos de Médico', () => { pm.expect(data).to.include.all.keys('id', 'nombre', 'especialidad', 'disponible'); pm.expect(data.id).to.eql(Number(pm.collectionVariables.get('medicoId'))); });"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/medicos/{{medicoId}}", "host": ["{{baseUrl}}"], "path": ["medicos", "{{medicoId}}"] } },
+          "response": [{
+            "name": "200 - Médico encontrado",
+            "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/medicos/2", "host": ["{{baseUrl}}"], "path": ["medicos", "2"] } },
+            "status": "OK", "code": 200, "_postman_previewlanguage": "json",
+            "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }], "cookie": [],
+            "body": "{\n  \"id\": 2,\n  \"nombre\": \"Carlos Rojas\",\n  \"especialidad\": \"Pediatría\",\n  \"disponible\": true\n}"
+          }]
+        },
+        {
+          "name": "POST - Crear médico",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('createdMedicoId', (Date.now() + 1).toString());"] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('Status 201', () => pm.response.to.have.status(201));",
+              "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+              "let data; pm.test('Respuesta JSON válida', () => { data = pm.response.json(); });",
+              "pm.test('Devuelve el médico creado', () => { pm.expect(data).to.include.all.keys('id', 'nombre', 'especialidad', 'disponible'); pm.expect(data.nombre).to.eql('Médico Postman'); });",
+              "pm.collectionVariables.set('createdMedicoId', data.id.toString());"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": {{createdMedicoId}},\n  \"nombre\": \"Médico Postman\",\n  \"especialidad\": \"Nutrición\",\n  \"disponible\": true\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/medicos", "host": ["{{baseUrl}}"], "path": ["medicos"] }
+          },
+          "response": [{
+            "name": "201 - Médico creado",
+            "originalRequest": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"id\": 1700000000002,\n  \"nombre\": \"Médico Postman\",\n  \"especialidad\": \"Nutrición\",\n  \"disponible\": true\n}", "options": { "raw": { "language": "json" } } }, "url": { "raw": "{{baseUrl}}/medicos", "host": ["{{baseUrl}}"], "path": ["medicos"] } },
+            "status": "Created", "code": 201, "_postman_previewlanguage": "json",
+            "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }], "cookie": [],
+            "body": "{\n  \"id\": 1700000000002,\n  \"nombre\": \"Médico Postman\",\n  \"especialidad\": \"Nutrición\",\n  \"disponible\": true\n}"
+          }]
+        },
+        {
+          "name": "PUT - Actualizar médico creado",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "let data; pm.test('Respuesta JSON válida', () => { data = pm.response.json(); });",
+            "pm.test('Devuelve campos actualizados', () => { pm.expect(data.id).to.eql(Number(pm.collectionVariables.get('createdMedicoId'))); pm.expect(data.nombre).to.eql('Médico Postman Actualizado'); pm.expect(data.disponible).to.eql(false); });"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": {{createdMedicoId}},\n  \"nombre\": \"Médico Postman Actualizado\",\n  \"especialidad\": \"Nutrición\",\n  \"disponible\": false\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/medicos/{{createdMedicoId}}", "host": ["{{baseUrl}}"], "path": ["medicos", "{{createdMedicoId}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE - Eliminar médico creado",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 204', () => pm.response.to.have.status(204));",
+            "pm.test('La respuesta no tiene cuerpo', () => pm.expect(pm.response.text()).to.eql(''));"
+          ] } }],
+          "request": { "method": "DELETE", "header": [], "url": { "raw": "{{baseUrl}}/medicos/{{createdMedicoId}}", "host": ["{{baseUrl}}"], "path": ["medicos", "{{createdMedicoId}}"] } },
+          "response": [{
+            "name": "204 - Médico eliminado",
+            "originalRequest": { "method": "DELETE", "header": [], "url": { "raw": "{{baseUrl}}/medicos/1700000000002", "host": ["{{baseUrl}}"], "path": ["medicos", "1700000000002"] } },
+            "status": "No Content", "code": 204, "_postman_previewlanguage": "text", "header": [], "cookie": [], "body": ""
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Validaciones y errores",
+      "item": [
+        {
+          "name": "400 - Turno con documento numérico",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "let data; pm.test('Respuesta JSON válida', () => { data = pm.response.json(); });",
+            "pm.test('Contrato de error de validación', () => { pm.expect(data).to.have.all.keys('status', 'message', 'code', 'details'); pm.expect(data.status).to.eql(400); pm.expect(data.code).to.eql('VALIDATION_ERROR'); pm.expect(data.details).to.be.an('array').that.is.not.empty; });"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": 900001,\n  \"paciente\": \"Documento inválido\",\n  \"documento\": 30111222,\n  \"especialidad\": \"Pediatría\",\n  \"fecha\": \"2026-09-15\",\n  \"hora\": \"09:30\",\n  \"confirmado\": true,\n  \"medicoId\": 2\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/turnos", "host": ["{{baseUrl}}"], "path": ["turnos"] }
+          },
+          "response": [{
+            "name": "400 - VALIDATION_ERROR documento",
+            "originalRequest": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"id\": 900001,\n  \"paciente\": \"Documento inválido\",\n  \"documento\": 30111222,\n  \"especialidad\": \"Pediatría\",\n  \"fecha\": \"2026-09-15\",\n  \"hora\": \"09:30\",\n  \"confirmado\": true,\n  \"medicoId\": 2\n}", "options": { "raw": { "language": "json" } } }, "url": { "raw": "{{baseUrl}}/turnos", "host": ["{{baseUrl}}"], "path": ["turnos"] } },
+            "status": "Bad Request", "code": 400, "_postman_previewlanguage": "json",
+            "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }], "cookie": [],
+            "body": "{\n  \"status\": 400,\n  \"message\": \"Error de validación en los datos ingresados\",\n  \"code\": \"VALIDATION_ERROR\",\n  \"details\": [\n    {\n      \"field\": \"documento\",\n      \"message\": \"El documento debe ser un texto\"\n    }\n  ]\n}"
+          }]
+        },
+        {
+          "name": "400 - Query medicoId inválido",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "const data = pm.response.json();",
+            "pm.test('Contrato VALIDATION_ERROR', () => { pm.expect(data).to.have.all.keys('status', 'message', 'code', 'details'); pm.expect(data.code).to.eql('VALIDATION_ERROR'); pm.expect(data.details).to.be.an('array').that.is.not.empty; });"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/turnos?medicoId=abc", "host": ["{{baseUrl}}"], "path": ["turnos"], "query": [{ "key": "medicoId", "value": "abc" }] } },
+          "response": []
+        },
+        {
+          "name": "400 - Query disponible inválido",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "const data = pm.response.json();",
+            "pm.test('Contrato VALIDATION_ERROR', () => { pm.expect(data).to.have.all.keys('status', 'message', 'code', 'details'); pm.expect(data.code).to.eql('VALIDATION_ERROR'); pm.expect(data.details).to.be.an('array').that.is.not.empty; });"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/medicos?disponible=si", "host": ["{{baseUrl}}"], "path": ["medicos"], "query": [{ "key": "disponible", "value": "si" }] } },
+          "response": []
+        },
+        {
+          "name": "400 - Médico con especialidad inválida",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "let data; pm.test('Respuesta JSON válida', () => { data = pm.response.json(); });",
+            "pm.test('Contrato de error de validación', () => { pm.expect(data).to.have.all.keys('status', 'message', 'code', 'details'); pm.expect(data.status).to.eql(400); pm.expect(data.code).to.eql('VALIDATION_ERROR'); pm.expect(data.details).to.be.an('array').that.is.not.empty; });"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": 900002,\n  \"nombre\": \"Médico Inválido\",\n  \"especialidad\": \"Cardiología\",\n  \"disponible\": true\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/medicos", "host": ["{{baseUrl}}"], "path": ["medicos"] }
+          },
+          "response": [{
+            "name": "400 - VALIDATION_ERROR especialidad",
+            "originalRequest": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"id\": 900002,\n  \"nombre\": \"Médico Inválido\",\n  \"especialidad\": \"Cardiología\",\n  \"disponible\": true\n}", "options": { "raw": { "language": "json" } } }, "url": { "raw": "{{baseUrl}}/medicos", "host": ["{{baseUrl}}"], "path": ["medicos"] } },
+            "status": "Bad Request", "code": 400, "_postman_previewlanguage": "json",
+            "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }], "cookie": [],
+            "body": "{\n  \"status\": 400,\n  \"message\": \"Error de validación en los datos ingresados\",\n  \"code\": \"VALIDATION_ERROR\",\n  \"details\": [\n    {\n      \"field\": \"especialidad\",\n      \"message\": \"La especialidad no es válida\"\n    }\n  ]\n}"
+          }]
+        },
+        {
+          "name": "404 - Turno inexistente",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 404', () => pm.response.to.have.status(404));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "let data; pm.test('Respuesta JSON válida', () => { data = pm.response.json(); });",
+            "pm.test('Contrato TURNO_NOT_FOUND', () => { pm.expect(data).to.have.all.keys('status', 'message', 'code', 'details'); pm.expect(data.status).to.eql(404); pm.expect(data.code).to.eql('TURNO_NOT_FOUND'); pm.expect(data.details).to.be.an('array'); });"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/turnos/999999", "host": ["{{baseUrl}}"], "path": ["turnos", "999999"] } },
+          "response": [{
+            "name": "404 - TURNO_NOT_FOUND",
+            "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/turnos/999999", "host": ["{{baseUrl}}"], "path": ["turnos", "999999"] } },
+            "status": "Not Found", "code": 404, "_postman_previewlanguage": "json",
+            "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }], "cookie": [],
+            "body": "{\n  \"status\": 404,\n  \"message\": \"Turno no encontrado\",\n  \"code\": \"TURNO_NOT_FOUND\",\n  \"details\": []\n}"
+          }]
+        },
+        {
+          "name": "404 - Médico inexistente",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 404', () => pm.response.to.have.status(404));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "let data; pm.test('Respuesta JSON válida', () => { data = pm.response.json(); });",
+            "pm.test('Contrato MEDICO_NOT_FOUND', () => { pm.expect(data).to.have.all.keys('status', 'message', 'code', 'details'); pm.expect(data.status).to.eql(404); pm.expect(data.code).to.eql('MEDICO_NOT_FOUND'); pm.expect(data.details).to.be.an('array'); });"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/medicos/999999", "host": ["{{baseUrl}}"], "path": ["medicos", "999999"] } },
+          "response": [{
+            "name": "404 - MEDICO_NOT_FOUND",
+            "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/medicos/999999", "host": ["{{baseUrl}}"], "path": ["medicos", "999999"] } },
+            "status": "Not Found", "code": 404, "_postman_previewlanguage": "json",
+            "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }], "cookie": [],
+            "body": "{\n  \"status\": 404,\n  \"message\": \"Médico no encontrado\",\n  \"code\": \"MEDICO_NOT_FOUND\",\n  \"details\": []\n}"
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Query Params",
+      "item": [
+        {
+          "name": "GET - Turnos por especialidad",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "const data = pm.response.json();",
+            "pm.test('Array filtrado por especialidad', () => { pm.expect(data).to.be.an('array'); data.forEach(item => pm.expect(item.especialidad).to.eql('Pediatría')); });"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/turnos?especialidad=Pediatría", "host": ["{{baseUrl}}"], "path": ["turnos"], "query": [{ "key": "especialidad", "value": "Pediatría" }] } },
+          "response": []
+        },
+        {
+          "name": "GET - Turnos por fecha",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "const data = pm.response.json();",
+            "pm.test('Array filtrado por fecha', () => { pm.expect(data).to.be.an('array'); data.forEach(item => pm.expect(item.fecha).to.eql('2026-08-14')); });"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/turnos?fecha=2026-08-14", "host": ["{{baseUrl}}"], "path": ["turnos"], "query": [{ "key": "fecha", "value": "2026-08-14" }] } },
+          "response": []
+        },
+        {
+          "name": "GET - Turnos por medicoId",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "const data = pm.response.json();",
+            "pm.test('Array filtrado por medicoId', () => { pm.expect(data).to.be.an('array'); data.forEach(item => pm.expect(item.medicoId).to.eql(Number(pm.collectionVariables.get('medicoId')))); });"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/turnos?medicoId={{medicoId}}", "host": ["{{baseUrl}}"], "path": ["turnos"], "query": [{ "key": "medicoId", "value": "{{medicoId}}" }] } },
+          "response": []
+        },
+        {
+          "name": "GET - Turnos con filtros combinados",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "const data = pm.response.json();",
+            "pm.test('Array con filtros combinados', () => { pm.expect(data).to.be.an('array'); data.forEach(item => { pm.expect(item.especialidad).to.eql('Pediatría'); pm.expect(item.medicoId).to.eql(2); }); });"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/turnos?especialidad=Pediatría&medicoId=2", "host": ["{{baseUrl}}"], "path": ["turnos"], "query": [{ "key": "especialidad", "value": "Pediatría" }, { "key": "medicoId", "value": "2" }] } },
+          "response": [{
+            "name": "200 - Turnos filtrados",
+            "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/turnos?especialidad=Pediatría&medicoId=2", "host": ["{{baseUrl}}"], "path": ["turnos"], "query": [{ "key": "especialidad", "value": "Pediatría" }, { "key": "medicoId", "value": "2" }] } },
+            "status": "OK", "code": 200, "_postman_previewlanguage": "json",
+            "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }], "cookie": [],
+            "body": "[{\n  \"id\": 101,\n  \"paciente\": \"pedro gonzález\",\n  \"documento\": \"31654210\",\n  \"especialidad\": \"Pediatría\",\n  \"fecha\": \"2026-08-14\",\n  \"hora\": \"10:00\",\n  \"confirmado\": true,\n  \"medicoId\": 2\n}]"
+          }]
+        },
+        {
+          "name": "GET - Médicos por especialidad",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "const data = pm.response.json();",
+            "pm.test('Array filtrado por especialidad', () => { pm.expect(data).to.be.an('array'); data.forEach(item => pm.expect(item.especialidad).to.eql('Odontología')); });"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/medicos?especialidad=Odontología", "host": ["{{baseUrl}}"], "path": ["medicos"], "query": [{ "key": "especialidad", "value": "Odontología" }] } },
+          "response": []
+        },
+        {
+          "name": "GET - Médicos por disponibilidad",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "const data = pm.response.json();",
+            "pm.test('Array filtrado por disponibilidad', () => { pm.expect(data).to.be.an('array'); data.forEach(item => pm.expect(item.disponible).to.eql(true)); });"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/medicos?disponible=true", "host": ["{{baseUrl}}"], "path": ["medicos"], "query": [{ "key": "disponible", "value": "true" }] } },
+          "response": []
+        },
+        {
+          "name": "GET - Médicos no disponibles",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "const data = pm.response.json();",
+            "pm.test('Array filtrado por no disponibles', () => { pm.expect(data).to.be.an('array'); data.forEach(item => pm.expect(item.disponible).to.eql(false)); });"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/medicos?disponible=false", "host": ["{{baseUrl}}"], "path": ["medicos"], "query": [{ "key": "disponible", "value": "false" }] } },
+          "response": []
+        },
+        {
+          "name": "GET - Médicos con filtros combinados",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Content-Type JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+            "const data = pm.response.json();",
+            "pm.test('Array con filtros combinados', () => { pm.expect(data).to.be.an('array'); data.forEach(item => { pm.expect(item.especialidad).to.eql('Nutrición'); pm.expect(item.disponible).to.eql(true); }); });"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/medicos?especialidad=Nutrición&disponible=true", "host": ["{{baseUrl}}"], "path": ["medicos"], "query": [{ "key": "especialidad", "value": "Nutrición" }, { "key": "disponible", "value": "true" }] } },
+          "response": [{
+            "name": "200 - Médicos filtrados",
+            "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/medicos?especialidad=Nutrición&disponible=true", "host": ["{{baseUrl}}"], "path": ["medicos"], "query": [{ "key": "especialidad", "value": "Nutrición" }, { "key": "disponible", "value": "true" }] } },
+            "status": "OK", "code": 200, "_postman_previewlanguage": "json",
+            "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }], "cookie": [],
+            "body": "[{\n  \"id\": 4,\n  \"nombre\": \"Diego Soto\",\n  \"especialidad\": \"Nutrición\",\n  \"disponible\": true\n}]"
+          }]
+        }
+      ]
+    }
+  ]
+}

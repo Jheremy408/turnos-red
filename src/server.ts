@@ -3,10 +3,15 @@ import dotenv from "dotenv";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
 
+import medicoRoutes from "./routes/medico.routes.js";
 import turnoRoutes from "./routes/turno.routes.js";
 import { cargarTurnos } from "./services/turno.service.js";
 import { establecerTurnos } from "./controllers/turno.controller.js";
 import { turnoEvents } from "./events/turno.events.js";
+import {
+  errorMiddleware,
+  notFoundMiddleware,
+} from "./middlewares/error.middleware.js";
 
 dotenv.config();
 
@@ -23,6 +28,9 @@ const io = new Server(httpServer, {
 app.use(express.json());
 app.use(express.static("public"));
 app.use(turnoRoutes);
+app.use(medicoRoutes);
+app.use(notFoundMiddleware);
+app.use(errorMiddleware);
 
 const PORT = Number(process.env.PORT) || 3000;
 const DATA_PATH = process.env.DATA_PATH || "./data/turnos.json";

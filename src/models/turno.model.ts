@@ -6,6 +6,7 @@ export interface TurnoCrudo {
   fecha: unknown;
   hora: unknown;
   confirmado: unknown;
+  medicoId?: unknown;
   observaciones?: unknown;
 }
 
@@ -17,5 +18,6 @@ export interface Turno {
   fecha: string;
   hora: string;
   confirmado: boolean;
+  medicoId: number;
   observaciones?: string;
 }

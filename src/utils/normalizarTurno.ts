@@ -1,4 +1,14 @@
 import type { Turno, TurnoCrudo } from "../models/turno.model.js";
+import { ESPECIALIDADES } from "../schemas/especialidad.schema.js";
+
+type Especialidad = (typeof ESPECIALIDADES)[number];
+
+const MEDICO_POR_ESPECIALIDAD: Record<Especialidad, number> = {
+  "Clínica médica": 1,
+  Pediatría: 2,
+  Odontología: 3,
+  Nutrición: 4,
+};
 
 export function normalizarTurno(dato: TurnoCrudo): Turno | null {
   const id = Number(dato.id);
@@ -10,9 +20,7 @@ export function normalizarTurno(dato: TurnoCrudo): Turno | null {
 
   const paciente = String(dato.paciente ?? "").trim();
   const documento = String(dato.documento ?? "").trim();
-  const especialidad = String(dato.especialidad ?? "")
-    .trim()
-    .toUpperCase();
+  const especialidad = normalizarEspecialidad(dato.especialidad);
   const fecha = normalizarFecha(dato.fecha);
   const hora = normalizarHora(dato.hora);
   const confirmado = normalizarConfirmado(dato.confirmado);
@@ -29,6 +37,15 @@ export function normalizarTurno(dato: TurnoCrudo): Turno | null {
     return null;
   }
 
+  const medicoId =
+    dato.medicoId === undefined
+      ? MEDICO_POR_ESPECIALIDAD[especialidad]
+      : Number(dato.medicoId);
+
+  if (!Number.isSafeInteger(medicoId) || medicoId <= 0) {
+    return null;
+  }
+
   const turno: Turno = {
     id,
     paciente,
@@ -37,6 +54,7 @@ export function normalizarTurno(dato: TurnoCrudo): Turno | null {
     fecha,
     hora,
     confirmado,
+    medicoId,
   };
 
   if (dato.observaciones !== undefined) {
@@ -44,6 +62,17 @@ export function normalizarTurno(dato: TurnoCrudo): Turno | null {
   }
 
   return turno;
+}
+
+function normalizarEspecialidad(valor: unknown): Especialidad | null {
+  const especialidad = String(valor ?? "").trim();
+
+  return (
+    ESPECIALIDADES.find(
+      (opcion) =>
+        opcion.toLocaleLowerCase("es") === especialidad.toLocaleLowerCase("es"),
+    ) ?? null
+  );
 }
 
 function normalizarFecha(valor: unknown): string | null {

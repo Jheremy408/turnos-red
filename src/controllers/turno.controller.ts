@@ -1,6 +1,16 @@
 import { turnoEvents } from "../events/turno.events.js";
+import { AppError } from "../errors/app.error.js";
 import type { Request, Response } from "express";
 import type { Turno } from "../models/turno.model.js";
+import {
+  crearTurnoActualizacionSchema,
+  turnoQuerySchema,
+  turnoSchema,
+} from "../schemas/turno.schema.js";
+import {
+  filtrarTurnos,
+  validarMedicoAsignado,
+} from "../services/turno.service.js";
 
 let turnos: Turno[] = [];
 
@@ -8,40 +18,37 @@ export function establecerTurnos(datos: Turno[]) {
   turnos = datos;
 }
 
-export function obtenerTurnos(_req: Request, res: Response) {
-  res.status(200).json(turnos);
+export function obtenerTurnos(req: Request, res: Response) {
+  const filtros = turnoQuerySchema.parse(req.query);
+
+  res.status(200).json(filtrarTurnos(turnos, filtros));
 }
 
 export function obtenerTurnoPorId(req: Request, res: Response) {
-  const id = Number(req.params.id);
+  const id = obtenerIdValido(req.params.id);
 
   const turno = turnos.find((t) => t.id === id);
 
   if (!turno) {
-    return res.status(404).json({ mensaje: "Turno no encontrado" });
+    throw new AppError(404, "Turno no encontrado", "TURNO_NOT_FOUND");
   }
 
   res.status(200).json(turno);
 }
 
 export function crearTurno(req: Request, res: Response) {
-  const nuevoTurno = req.body as Turno;
+  const nuevoTurno = turnoSchema.parse(req.body);
 
-  if (
-    !nuevoTurno.id ||
-    !nuevoTurno.paciente ||
-    !nuevoTurno.documento ||
-    !nuevoTurno.especialidad ||
-    !nuevoTurno.fecha ||
-    !nuevoTurno.hora
-  ) {
-    return res.status(400).json({ mensaje: "Datos incompletos" });
-  }
+  validarMedicoAsignado(nuevoTurno.medicoId);
 
   const existe = turnos.some((t) => t.id === nuevoTurno.id);
 
   if (existe) {
-    return res.status(400).json({ mensaje: "El ID ya existe" });
+    throw new AppError(
+      400,
+      "Ya existe un turno con el ID ingresado",
+      "TURNO_ID_ALREADY_EXISTS",
+    );
   }
 
   turnos.push(nuevoTurno);
@@ -52,19 +59,18 @@ export function crearTurno(req: Request, res: Response) {
 }
 
 export function actualizarTurno(req: Request, res: Response) {
-  const id = Number(req.params.id);
+  const id = obtenerIdValido(req.params.id);
+  const datos = crearTurnoActualizacionSchema(id).parse(req.body);
+
+  validarMedicoAsignado(datos.medicoId);
 
   const indice = turnos.findIndex((t) => t.id === id);
 
   if (indice === -1) {
-    return res.status(404).json({ mensaje: "Turno no encontrado" });
+    throw new AppError(404, "Turno no encontrado", "TURNO_NOT_FOUND");
   }
 
-  const actualizado: Turno = {
-    ...turnos[indice],
-    ...req.body,
-    id,
-  };
+  const actualizado: Turno = { ...datos, id };
 
   turnos[indice] = actualizado;
 
@@ -74,17 +80,31 @@ export function actualizarTurno(req: Request, res: Response) {
 }
 
 export function eliminarTurno(req: Request, res: Response) {
-  const id = Number(req.params.id);
+  const id = obtenerIdValido(req.params.id);
 
   const indice = turnos.findIndex((t) => t.id === id);
 
   if (indice === -1) {
-    return res.status(404).json({ mensaje: "Turno no encontrado" });
+    throw new AppError(404, "Turno no encontrado", "TURNO_NOT_FOUND");
   }
 
   const eliminado = turnos.splice(indice, 1)[0];
 
   turnoEvents.emit("turno:eliminado", eliminado);
 
-  res.status(200).json(eliminado);
+  res.status(204).send();
+}
+
+function obtenerIdValido(valor: string | string[] | undefined): number {
+  if (typeof valor !== "string" || !/^\d+$/.test(valor)) {
+    throw new AppError(400, "El ID debe ser un entero positivo", "INVALID_ID");
+  }
+
+  const id = Number(valor);
+
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new AppError(400, "El ID debe ser un entero positivo", "INVALID_ID");
+  }
+
+  return id;
 }
