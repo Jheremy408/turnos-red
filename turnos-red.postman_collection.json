@@ -92,10 +92,10 @@
           },
           "response": [{
             "name": "200 - Turno actualizado",
-            "originalRequest": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"id\": 1700000000001,\n  \"paciente\": \"Paciente Postman Actualizado\",\n  \"documento\": \"30111222\",\n  \"especialidad\": \"Pediatría\",\n  \"fecha\": \"2026-09-16\",\n  \"hora\": \"10:15\",\n  \"confirmado\": false,\n  \"medicoId\": 2\n}", "options": { "raw": { "language": "json" } } }, "url": { "raw": "{{baseUrl}}/turnos/1700000000001", "host": ["{{baseUrl}}"], "path": ["turnos", "1700000000001"] } },
+            "originalRequest": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"id\": 1700000000001,\n  \"paciente\": \"Paciente Postman Actualizado\",\n  \"documento\": \"30111222\",\n  \"especialidad\": \"Pediatría\",\n  \"fecha\": \"2026-09-16\",\n  \"hora\": \"10:15\",\n  \"confirmado\": false,\n  \"medicoId\": 2,\n  \"observaciones\": \"Actualizado desde Postman\"\n}", "options": { "raw": { "language": "json" } } }, "url": { "raw": "{{baseUrl}}/turnos/1700000000001", "host": ["{{baseUrl}}"], "path": ["turnos", "1700000000001"] } },
             "status": "OK", "code": 200, "_postman_previewlanguage": "json",
             "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }], "cookie": [],
-            "body": "{\n  \"id\": 1700000000001,\n  \"paciente\": \"Paciente Postman Actualizado\",\n  \"documento\": \"30111222\",\n  \"especialidad\": \"Pediatría\",\n  \"fecha\": \"2026-09-16\",\n  \"hora\": \"10:15\",\n  \"confirmado\": false,\n  \"medicoId\": 2\n}"
+            "body": "{\n  \"id\": 1700000000001,\n  \"paciente\": \"Paciente Postman Actualizado\",\n  \"documento\": \"30111222\",\n  \"especialidad\": \"Pediatría\",\n  \"fecha\": \"2026-09-16\",\n  \"hora\": \"10:15\",\n  \"confirmado\": false,\n  \"medicoId\": 2,\n  \"observaciones\": \"Actualizado desde Postman\"\n}"
           }]
         },
         {

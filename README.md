@@ -132,6 +132,124 @@ turnos-red/
 - `server.ts`: configura Express, las rutas, los middlewares, el servidor HTTP y Socket.IO.
 - `dist/`: se genera con `npm run build` y no debe editarse manualmente.
 
+## Arquitectura
+
+### Diagrama de componentes
+
+El siguiente diagrama representa los componentes que existen actualmente y sus comunicaciones principales. Los turnos históricos se leen desde `data/turnos.json` durante el arranque; después de esa carga, los turnos y los médicos se administran exclusivamente en memoria.
+
+```mermaid
+flowchart LR
+  HTTP["Cliente Web / Postman"]
+  WS["Clientes WebSocket"]
+  JSON["data/turnos.json"]
+
+  subgraph APP["Aplicación TurnosRed"]
+    EXPRESS["Express<br/>src/server.ts"]
+    ROUTES["Rutas Express<br/>src/routes"]
+    TURNO_CTRL["Controlador de Turnos<br/>src/controllers"]
+    MEDICO_CTRL["Controlador de Médicos<br/>src/controllers"]
+    ZOD["Validaciones Zod<br/>src/schemas"]
+    TURNO_SERVICE["turno.service.ts<br/>src/services"]
+    MEDICO_SERVICE["medico.service.ts<br/>src/services"]
+    TURNOS_MEM["Estado de Turnos<br/>en memoria"]
+    MEDICOS_MEM["Estado de Médicos<br/>en memoria"]
+    ERRORS["Middleware centralizado<br/>de errores"]
+    EVENTS["src/events<br/>EventEmitter"]
+    SOCKET["Socket.IO"]
+  end
+
+  HTTP <-->|"HTTP"| EXPRESS
+  EXPRESS --> ROUTES
+  ROUTES --> TURNO_CTRL
+  ROUTES --> MEDICO_CTRL
+
+  TURNO_CTRL -->|"parse de body o query"| ZOD
+  MEDICO_CTRL -->|"parse de body o query"| ZOD
+  ZOD -->|"datos validados"| TURNO_CTRL
+  ZOD -->|"datos validados"| MEDICO_CTRL
+
+  TURNO_CTRL -->|"filtrar turnos o validar médico"| TURNO_SERVICE
+  TURNO_CTRL <-->|"consultar y modificar"| TURNOS_MEM
+  TURNO_SERVICE -->|"consultar existencia"| MEDICO_SERVICE
+  MEDICO_CTRL -->|"CRUD"| MEDICO_SERVICE
+  MEDICO_SERVICE <-->|"consultar y modificar"| MEDICOS_MEM
+
+  JSON -->|"lectura al iniciar"| TURNO_SERVICE
+  TURNO_SERVICE -->|"turnos normalizados"| EXPRESS
+  EXPRESS -->|"establecerTurnos"| TURNOS_MEM
+
+  TURNO_CTRL -->|"altas, actualizaciones y eliminaciones"| EVENTS
+  EVENTS -->|"listeners registrados en server.ts"| SOCKET
+  SOCKET -->|"eventos de turnos"| WS
+
+  ZOD -.->|"ZodError"| ERRORS
+  TURNO_CTRL -.->|"AppError"| ERRORS
+  MEDICO_CTRL -.->|"AppError"| ERRORS
+  ERRORS -->|"respuesta 400, 404 o 500"| HTTP
+```
+
+No existe una capa de repositorios ni una base de datos. Tampoco existe `medicos.json`: los médicos iniciales están definidos en `medico.service.ts` y el servicio gestiona su arreglo en memoria. Las operaciones POST, PUT y DELETE de turnos modifican el estado en memoria, pero no escriben `data/turnos.json`.
+
+### Secuencia de POST /turnos
+
+El flujo de creación valida el cuerpo y la referencia al médico antes de modificar el arreglo de turnos. EventEmitter ejecuta sus listeners de forma síncrona, por lo que Socket.IO retransmite el evento antes de que el controlador envíe la respuesta HTTP 201.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant C as Cliente
+  participant ER as Express / Router
+  participant CT as Controlador Turno
+  participant Z as Zod
+  participant TS as turno.service
+  participant MS as medico.service
+  participant MT as Memoria de Turnos
+  participant EV as EventEmitter
+  participant IO as Socket.IO
+  participant WS as Clientes WebSocket
+  participant EM as Middleware de errores
+
+  C->>ER: POST /turnos
+  ER->>CT: crearTurno(req, res)
+  CT->>Z: turnoSchema.parse(req.body)
+
+  alt La validación Zod falla
+    Z-->>CT: Lanza ZodError
+    CT-->>EM: Propaga el error de validación
+    EM-->>C: HTTP 400 + ErrorResponse
+  else El cuerpo es válido
+    Z-->>CT: nuevoTurno validado
+    CT->>TS: validarMedicoAsignado(medicoId)
+    TS->>MS: existeMedico(medicoId)
+    MS-->>TS: true o false
+
+    alt El médico no existe
+      TS-->>CT: Lanza MEDICO_ID_INVALID
+      CT-->>EM: Propaga AppError
+      EM-->>C: HTTP 400 + ErrorResponse
+    else El médico existe
+      TS-->>CT: Validación completada
+      CT->>MT: Comprobar si el ID está duplicado
+
+      alt El ID ya existe
+        MT-->>CT: ID duplicado
+        CT-->>EM: Lanza TURNO_ID_ALREADY_EXISTS
+        EM-->>C: HTTP 400 + ErrorResponse
+      else El ID está disponible
+        MT-->>CT: ID disponible
+        CT->>MT: push(nuevoTurno)
+        CT->>EV: emit("turno:creado", nuevoTurno)
+        EV->>IO: Listener registrado en server.ts
+        IO-->>WS: Evento "turno:nuevo"
+        CT-->>C: HTTP 201 Created + turno
+      end
+    end
+  end
+
+  Note over MT: Las altas y modificaciones permanecen en memoria.<br/>data/turnos.json solo se lee durante el arranque.
+```
+
 ## Especialidades válidas
 
 Turnos y médicos aceptan exactamente estas especialidades:
@@ -337,3 +455,9 @@ Antes de ejecutar la colección, debe iniciarse la API y verificarse que la vari
 | Colección y tests de Postman       | Codex y Postman | Preparar una colección v2.1 con CRUD, filtros, errores y scripts de Tests.                                               | Colección con 24 requests, variables dinámicas y comprobaciones automatizadas.                                     | Ejecución y revisión manual mediante Collection Runner en Postman.                 |
 | Saved Responses / Mock Server      | Codex y Postman | Incluir ejemplos representativos para facilitar un Mock Server.                                                          | Saved Responses para respuestas `200`, `201`, `204`, `400` y `404`.                                                | Creación y comprobación manual del Mock Server en Postman.                         |
 | Actualización del README           | Codex           | Documentar el estado final de la API, instalación, modelos, endpoints, filtros, errores, tiempo real, Postman e IA.      | README consolidado y actualizado con la implementación actual de TurnosRed.                                        | Ninguno al momento de esta actualización.                                          |
+| Configuración Swagger/OpenAPI      | Codex           | Integrar OpenAPI 3.0 con Swagger UI sin modificar el comportamiento existente ni agregar autenticación.                 | Configuración OpenAPI 3.0.3 y documentación interactiva disponible en `/api-docs`.                                 | Compilación, validación estructural y comprobación HTTP de Swagger UI.              |
+| Anotaciones JSDoc de la API        | Codex           | Documentar las diez operaciones reales, sus parámetros y los códigos HTTP efectivamente utilizados.                     | Anotaciones próximas a las rutas Express para Turnos y Médicos.                                                    | Comparación manual con rutas, controladores y schemas Zod.                          |
+| Schemas OpenAPI                    | Codex           | Definir Turno, Médico, errores y cuerpos de actualización de acuerdo con las validaciones actuales.                      | Schemas reutilizables con tipos, campos obligatorios, formatos y especialidades válidas.                           | Revisión cruzada de obligatoriedad, `documento`, `medicoId`, fechas, horas y enums. |
+| Diagramas Mermaid                  | Codex           | Documentar la arquitectura real y la secuencia de `POST /turnos` sin inventar persistencia ni capas inexistentes.        | Diagramas de componentes y secuencia integrados en el README.                                                      | Comprobación factual contra servidor, controladores, servicios, eventos y memoria.  |
+| Registros ADR                      | Codex           | Registrar la adopción de OpenAPI y analizar JWT únicamente como propuesta futura.                                       | ADR-001 Aceptado y ADR-002 Propuesto con contexto, consecuencias, alternativas, limitaciones e impacto.            | Revisión manual de estados, fecha y ausencia de implementación de JWT.              |
+| Verificación de coherencia         | Codex           | Comparar código, Zod, OpenAPI, Postman, Mermaid y ADR, corrigiendo solo divergencias documentales demostradas.           | Matriz de coherencia, corrección mínima de una respuesta guardada y fuente del informe de evidencias.              | Pruebas HTTP, validación OpenAPI, revisión de Postman y controles de build y lint.   |

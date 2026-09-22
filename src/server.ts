@@ -2,7 +2,9 @@ import express from "express";
 import dotenv from "dotenv";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
+import swaggerUi from "swagger-ui-express";
 
+import { swaggerSpec } from "./config/swagger.js";
 import medicoRoutes from "./routes/medico.routes.js";
 import turnoRoutes from "./routes/turno.routes.js";
 import { cargarTurnos } from "./services/turno.service.js";
@@ -27,6 +29,7 @@ const io = new Server(httpServer, {
 
 app.use(express.json());
 app.use(express.static("public"));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use(turnoRoutes);
 app.use(medicoRoutes);
 app.use(notFoundMiddleware);
