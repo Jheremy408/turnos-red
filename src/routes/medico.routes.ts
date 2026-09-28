@@ -59,6 +59,8 @@ const router = Router();
  *     summary: Crear un médico
  *     tags:
  *       - Médicos
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -78,11 +80,15 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Medico'
  *       '400':
- *         description: Cuerpo inválido o ID duplicado.
+ *         description: Cuerpo inválido.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
+ *       '401':
+ *         $ref: '#/components/responses/Unauthorized'
+ *       '409':
+ *         $ref: '#/components/responses/ResourceConflict'
  *       '500':
  *         description: Error interno del servidor.
  *         content:
@@ -122,11 +128,7 @@ router.get("/medicos", obtenerMedicos);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  *       '404':
- *         description: Médico no encontrado.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         $ref: '#/components/responses/ResourceNotFound'
  *       '500':
  *         description: Error interno del servidor.
  *         content:
@@ -138,6 +140,8 @@ router.get("/medicos", obtenerMedicos);
  *     description: Reemplaza completamente un médico. El ID del cuerpo es opcional; si se incluye, debe coincidir con el ID de la ruta.
  *     tags:
  *       - Médicos
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -170,12 +174,10 @@ router.get("/medicos", obtenerMedicos);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
+ *       '401':
+ *         $ref: '#/components/responses/Unauthorized'
  *       '404':
- *         description: Médico no encontrado.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         $ref: '#/components/responses/ResourceNotFound'
  *       '500':
  *         description: Error interno del servidor.
  *         content:
@@ -186,6 +188,8 @@ router.get("/medicos", obtenerMedicos);
  *     summary: Eliminar un médico
  *     tags:
  *       - Médicos
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -204,12 +208,10 @@ router.get("/medicos", obtenerMedicos);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
+ *       '401':
+ *         $ref: '#/components/responses/Unauthorized'
  *       '404':
- *         description: Médico no encontrado.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         $ref: '#/components/responses/ResourceNotFound'
  *       '500':
  *         description: Error interno del servidor.
  *         content:

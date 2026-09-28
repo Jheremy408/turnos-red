@@ -67,6 +67,8 @@ const router = Router();
  *     description: Crea un turno en memoria y notifica su creación mediante el flujo de eventos existente.
  *     tags:
  *       - Turnos
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -91,11 +93,17 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Turno'
  *       '400':
- *         description: Cuerpo inválido, ID duplicado o médico inexistente.
+ *         description: Cuerpo inválido.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
+ *       '401':
+ *         $ref: '#/components/responses/Unauthorized'
+ *       '404':
+ *         $ref: '#/components/responses/ResourceNotFound'
+ *       '409':
+ *         $ref: '#/components/responses/ResourceConflict'
  *       '500':
  *         description: Error interno del servidor.
  *         content:
@@ -135,11 +143,7 @@ router.get("/turnos", obtenerTurnos);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  *       '404':
- *         description: Turno no encontrado.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         $ref: '#/components/responses/ResourceNotFound'
  *       '500':
  *         description: Error interno del servidor.
  *         content:
@@ -151,6 +155,8 @@ router.get("/turnos", obtenerTurnos);
  *     description: Reemplaza completamente un turno. El ID del cuerpo es opcional; si se incluye, debe coincidir con el ID de la ruta.
  *     tags:
  *       - Turnos
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -183,17 +189,15 @@ router.get("/turnos", obtenerTurnos);
  *             schema:
  *               $ref: '#/components/schemas/Turno'
  *       '400':
- *         description: ID o cuerpo inválido, o médico inexistente.
+ *         description: ID o cuerpo inválido.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
+ *       '401':
+ *         $ref: '#/components/responses/Unauthorized'
  *       '404':
- *         description: Turno no encontrado.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         $ref: '#/components/responses/ResourceNotFound'
  *       '500':
  *         description: Error interno del servidor.
  *         content:
@@ -204,6 +208,8 @@ router.get("/turnos", obtenerTurnos);
  *     summary: Eliminar un turno
  *     tags:
  *       - Turnos
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -222,12 +228,10 @@ router.get("/turnos", obtenerTurnos);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
+ *       '401':
+ *         $ref: '#/components/responses/Unauthorized'
  *       '404':
- *         description: Turno no encontrado.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         $ref: '#/components/responses/ResourceNotFound'
  *       '500':
  *         description: Error interno del servidor.
  *         content:

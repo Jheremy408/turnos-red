@@ -87,6 +87,10 @@ const options: swaggerJsdoc.Options = {
     },
     tags: [
       {
+        name: "Autenticación",
+        description: "Registro de usuarios e inicio de sesión mediante JWT.",
+      },
+      {
         name: "Turnos",
         description: "Operaciones para administrar turnos médicos.",
       },
@@ -96,7 +100,84 @@ const options: swaggerJsdoc.Options = {
       },
     ],
     components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
       schemas: {
+        AuthRegisterRequest: {
+          type: "object",
+          additionalProperties: false,
+          required: ["email", "password"],
+          properties: {
+            email: {
+              type: "string",
+              format: "email",
+              example: "usuario@ejemplo.com",
+            },
+            password: {
+              type: "string",
+              minLength: 8,
+              writeOnly: true,
+              example: "Password123",
+            },
+          },
+        },
+        AuthLoginRequest: {
+          type: "object",
+          additionalProperties: false,
+          required: ["email", "password"],
+          properties: {
+            email: {
+              type: "string",
+              format: "email",
+              example: "usuario@ejemplo.com",
+            },
+            password: {
+              type: "string",
+              minLength: 1,
+              writeOnly: true,
+              example: "Password123",
+            },
+          },
+        },
+        AuthUser: {
+          type: "object",
+          additionalProperties: false,
+          required: ["id", "email", "rol"],
+          properties: {
+            id: {
+              type: "integer",
+              minimum: 1,
+              example: 1,
+            },
+            email: {
+              type: "string",
+              format: "email",
+              example: "usuario@ejemplo.com",
+            },
+            rol: {
+              type: "string",
+              enum: ["usuario"],
+              example: "usuario",
+            },
+          },
+        },
+        AuthTokenResponse: {
+          type: "object",
+          additionalProperties: false,
+          required: ["token"],
+          properties: {
+            token: {
+              type: "string",
+              description: "JWT firmado con expiración.",
+              example: "<jwt>",
+            },
+          },
+        },
         Turno: {
           type: "object",
           additionalProperties: false,
@@ -182,6 +263,70 @@ const options: swaggerJsdoc.Options = {
                   message: "El documento debe ser un texto",
                 },
               ],
+            },
+          },
+        },
+      },
+      responses: {
+        Unauthorized: {
+          description: "Token ausente, inválido o expirado.",
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/ErrorResponse",
+              },
+              examples: {
+                tokenMissing: {
+                  summary: "Token ausente",
+                  value: {
+                    status: 401,
+                    message: "Token de autenticación ausente",
+                    code: "AUTH_TOKEN_MISSING",
+                    details: [],
+                  },
+                },
+                tokenInvalid: {
+                  summary: "Token inválido o expirado",
+                  value: {
+                    status: 401,
+                    message: "Token de autenticación inválido o expirado",
+                    code: "AUTH_TOKEN_INVALID",
+                    details: [],
+                  },
+                },
+              },
+            },
+          },
+        },
+        ResourceNotFound: {
+          description: "Recurso no encontrado.",
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/ErrorResponse",
+              },
+              example: {
+                status: 404,
+                message: "Recurso no encontrado",
+                code: "RESOURCE_NOT_FOUND",
+                details: [],
+              },
+            },
+          },
+        },
+        ResourceConflict: {
+          description: "Ya existe un recurso con los datos identificadores enviados.",
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/ErrorResponse",
+              },
+              example: {
+                status: 409,
+                message: "Ya existe un recurso con el identificador ingresado",
+                code: "RESOURCE_CONFLICT",
+                details: [],
+              },
             },
           },
         },
