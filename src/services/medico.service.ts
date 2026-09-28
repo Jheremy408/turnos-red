@@ -1,4 +1,5 @@
 import { AppError } from "../errors/app.error.js";
+import { ERROR_CODES } from "../errors/error-code.js";
 import type { Medico } from "../models/medico.model.js";
 
 type FiltrosMedico = Partial<Pick<Medico, "especialidad" | "disponible">>;
@@ -48,7 +49,11 @@ export function obtenerMedicoPorId(id: number): Medico {
   const medico = medicos.find((registro) => registro.id === id);
 
   if (!medico) {
-    throw new AppError(404, "Médico no encontrado", "MEDICO_NOT_FOUND");
+    throw new AppError(
+      404,
+      "Médico no encontrado",
+      ERROR_CODES.RESOURCE_NOT_FOUND,
+    );
   }
 
   return medico;
@@ -61,9 +66,9 @@ export function crearMedico(nuevoMedico: Medico): Medico {
 
   if (idExistente) {
     throw new AppError(
-      400,
+      409,
       "Ya existe un médico con el ID ingresado",
-      "MEDICO_ID_ALREADY_EXISTS",
+      ERROR_CODES.RESOURCE_CONFLICT,
     );
   }
 
@@ -76,7 +81,11 @@ export function actualizarMedico(id: number, datos: Medico): Medico {
   const indice = medicos.findIndex((registro) => registro.id === id);
 
   if (indice === -1) {
-    throw new AppError(404, "Médico no encontrado", "MEDICO_NOT_FOUND");
+    throw new AppError(
+      404,
+      "Médico no encontrado",
+      ERROR_CODES.RESOURCE_NOT_FOUND,
+    );
   }
 
   const medicoActualizado: Medico = { ...datos, id };
@@ -89,7 +98,11 @@ export function eliminarMedico(id: number): void {
   const indice = medicos.findIndex((registro) => registro.id === id);
 
   if (indice === -1) {
-    throw new AppError(404, "Médico no encontrado", "MEDICO_NOT_FOUND");
+    throw new AppError(
+      404,
+      "Médico no encontrado",
+      ERROR_CODES.RESOURCE_NOT_FOUND,
+    );
   }
 
   medicos.splice(indice, 1);

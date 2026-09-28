@@ -7,6 +7,7 @@ import {
   obtenerMedicoPorId,
   obtenerMedicos,
 } from "../controllers/medico.controller.js";
+import { verificarToken } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
@@ -217,8 +218,8 @@ router.get("/medicos", obtenerMedicos);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get("/medicos/:id", obtenerMedicoPorId);
-router.post("/medicos", crearMedico);
-router.put("/medicos/:id", actualizarMedico);
-router.delete("/medicos/:id", eliminarMedico);
+router.post("/medicos", verificarToken, crearMedico);
+router.put("/medicos/:id", verificarToken, actualizarMedico);
+router.delete("/medicos/:id", verificarToken, eliminarMedico);
 
 export default router;

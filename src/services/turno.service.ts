@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import type { Turno, TurnoCrudo } from "../models/turno.model.js";
 import { normalizarTurno } from "../utils/normalizarTurno.js";
 import { AppError } from "../errors/app.error.js";
+import { ERROR_CODES } from "../errors/error-code.js";
+import { logger } from "../config/logger.js";
 import { existeMedico } from "./medico.service.js";
 
 type FiltrosTurno = Partial<Pick<Turno, "especialidad" | "fecha" | "medicoId">>;
@@ -20,9 +22,9 @@ export function filtrarTurnos(turnos: Turno[], filtros: FiltrosTurno): Turno[] {
 export function validarMedicoAsignado(medicoId: number): void {
   if (!existeMedico(medicoId)) {
     throw new AppError(
-      400,
+      404,
       "El médico indicado no existe",
-      "MEDICO_ID_INVALID",
+      ERROR_CODES.RESOURCE_NOT_FOUND,
       [
         {
           field: "medicoId",
@@ -58,12 +60,24 @@ export async function cargarTurnos(ruta: string): Promise<Turno[]> {
       }
     }
 
-    console.log(`Registros aceptados: ${aceptados}`);
-    console.log(`Registros rechazados: ${rechazados}`);
+    logger.info(
+      {
+        event: "turnos_loaded",
+        acceptedCount: aceptados,
+        rejectedCount: rechazados,
+      },
+      "Carga inicial de turnos completada",
+    );
 
     return turnos;
   } catch (error) {
-    console.error("Error al leer o procesar turnos.json:", error);
+    logger.error(
+      {
+        event: "turnos_load_failed",
+        err: error,
+      },
+      "Error al leer o procesar turnos.json",
+    );
     throw error;
   }
 }

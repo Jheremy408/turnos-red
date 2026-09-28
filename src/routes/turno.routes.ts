@@ -6,6 +6,7 @@ import {
   actualizarTurno,
   eliminarTurno,
 } from "../controllers/turno.controller.js";
+import { verificarToken } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
@@ -235,8 +236,8 @@ router.get("/turnos", obtenerTurnos);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get("/turnos/:id", obtenerTurnoPorId);
-router.post("/turnos", crearTurno);
-router.put("/turnos/:id", actualizarTurno);
-router.delete("/turnos/:id", eliminarTurno);
+router.post("/turnos", verificarToken, crearTurno);
+router.put("/turnos/:id", verificarToken, actualizarTurno);
+router.delete("/turnos/:id", verificarToken, eliminarTurno);
 
 export default router;

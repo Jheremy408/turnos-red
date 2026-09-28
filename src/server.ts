@@ -1,23 +1,11 @@
-import express from "express";
-import dotenv from "dotenv";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
-import swaggerUi from "swagger-ui-express";
 
-import { swaggerSpec } from "./config/swagger.js";
-import medicoRoutes from "./routes/medico.routes.js";
-import turnoRoutes from "./routes/turno.routes.js";
+import app from "./app.js";
 import { cargarTurnos } from "./services/turno.service.js";
 import { establecerTurnos } from "./controllers/turno.controller.js";
 import { turnoEvents } from "./events/turno.events.js";
-import {
-  errorMiddleware,
-  notFoundMiddleware,
-} from "./middlewares/error.middleware.js";
-
-dotenv.config();
-
-const app = express();
+import { logger } from "./config/logger.js";
 
 const httpServer = createServer(app);
 
@@ -27,22 +15,26 @@ const io = new Server(httpServer, {
   },
 });
 
-app.use(express.json());
-app.use(express.static("public"));
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-app.use(turnoRoutes);
-app.use(medicoRoutes);
-app.use(notFoundMiddleware);
-app.use(errorMiddleware);
-
 const PORT = Number(process.env.PORT) || 3000;
 const DATA_PATH = process.env.DATA_PATH || "./data/turnos.json";
 
 io.on("connection", (socket) => {
-  console.log(`Cliente conectado: ${socket.id}`);
+  logger.info(
+    {
+      event: "socket_connected",
+      socketId: socket.id,
+    },
+    "Cliente Socket.IO conectado",
+  );
 
   socket.on("disconnect", () => {
-    console.log(`Cliente desconectado: ${socket.id}`);
+    logger.info(
+      {
+        event: "socket_disconnected",
+        socketId: socket.id,
+      },
+      "Cliente Socket.IO desconectado",
+    );
   });
 });
 
@@ -65,10 +57,22 @@ async function iniciarServidor() {
     establecerTurnos(turnos);
 
     httpServer.listen(PORT, () => {
-      console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
+      logger.info(
+        {
+          event: "server_started",
+          port: PORT,
+        },
+        "Servidor iniciado",
+      );
     });
   } catch (error) {
-    console.error("No se pudo iniciar el servidor:", error);
+    logger.fatal(
+      {
+        event: "server_start_failed",
+        err: error,
+      },
+      "No se pudo iniciar el servidor",
+    );
     process.exit(1);
   }
 }

@@ -1,19 +1,21 @@
-import type { ErrorRequestHandler, RequestHandler } from "express";
+import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { ZodError } from "zod";
 
 import { AppError } from "../errors/app.error.js";
+import { ERROR_CODES, type ErrorCode } from "../errors/error-code.js";
+import { logger } from "../config/logger.js";
 
 interface ErrorResponse {
   status: number;
   message: string;
-  code: string;
+  code: ErrorCode;
   details: unknown[];
 }
 
 function responderError(
   status: number,
   message: string,
-  code: string,
+  code: ErrorCode,
   details: unknown[] = [],
 ): ErrorResponse {
   return { status, message, code, details };
@@ -34,30 +36,30 @@ export const notFoundMiddleware: RequestHandler = (req, _res, next) => {
     new AppError(
       404,
       `Ruta no encontrada: ${req.method} ${req.originalUrl}`,
-      "ROUTE_NOT_FOUND",
+      ERROR_CODES.RESOURCE_NOT_FOUND,
     ),
   );
 };
 
-export const errorMiddleware: ErrorRequestHandler = (
-  error,
-  _req,
-  res,
-  _next,
-) => {
+export function errorMiddleware(
+  err: Error,
+  req: Request,
+  res: Response,
+  _next: NextFunction,
+): void {
   void _next;
 
-  if (error instanceof AppError) {
+  if (err instanceof AppError) {
     res
-      .status(error.status)
+      .status(err.status)
       .json(
-        responderError(error.status, error.message, error.code, error.details),
+        responderError(err.status, err.message, err.code, err.details),
       );
     return;
   }
 
-  if (error instanceof ZodError) {
-    const details = error.issues.map((issue) => ({
+  if (err instanceof ZodError) {
+    const details = err.issues.map((issue) => ({
       field: issue.path.map(String).join(".") || "body",
       message: issue.message,
     }));
@@ -68,27 +70,35 @@ export const errorMiddleware: ErrorRequestHandler = (
         responderError(
           400,
           "Error de validación en los datos ingresados",
-          "VALIDATION_ERROR",
+          ERROR_CODES.VALIDATION_ERROR,
           details,
         ),
       );
     return;
   }
 
-  if (esErrorDeJsonInvalido(error)) {
+  if (esErrorDeJsonInvalido(err)) {
     res
       .status(400)
       .json(
         responderError(
           400,
           "Error de validación en los datos ingresados",
-          "VALIDATION_ERROR",
+          ERROR_CODES.VALIDATION_ERROR,
         ),
       );
     return;
   }
 
-  console.error("Error inesperado:", error);
+  logger.error(
+    {
+      event: "unhandled_error",
+      err,
+      method: req.method,
+      path: req.path,
+    },
+    "Error inesperado capturado",
+  );
 
   res
     .status(500)
@@ -96,7 +106,7 @@ export const errorMiddleware: ErrorRequestHandler = (
       responderError(
         500,
         "Error interno del servidor",
-        "INTERNAL_SERVER_ERROR",
+        ERROR_CODES.INTERNAL_SERVER_ERROR,
       ),
     );
-};
+}
