@@ -14,7 +14,7 @@ import {
 } from "../models/usuario.model.js";
 import type { LoginInput, RegistroInput } from "../schemas/auth.schema.js";
 
-const USUARIOS_PATH = "./data/usuarios.json";
+const DEFAULT_USUARIOS_PATH = "./data/usuarios.json";
 const BCRYPT_ROUNDS = 10;
 const JWT_EXPIRATION = "1h";
 
@@ -109,7 +109,7 @@ async function cargarUsuarios(): Promise<Usuario[]> {
   let contenido: string;
 
   try {
-    contenido = await readFile(USUARIOS_PATH, "utf-8");
+    contenido = await readFile(obtenerRutaUsuarios(), "utf-8");
   } catch (error) {
     if (esErrorDeArchivoNoEncontrado(error)) {
       return [];
@@ -133,10 +133,14 @@ async function cargarUsuarios(): Promise<Usuario[]> {
 
 async function guardarUsuarios(usuarios: Usuario[]): Promise<void> {
   await writeFile(
-    USUARIOS_PATH,
+    obtenerRutaUsuarios(),
     `${JSON.stringify(usuarios, null, 2)}\n`,
     "utf-8",
   );
+}
+
+function obtenerRutaUsuarios(): string {
+  return process.env.USERS_DATA_PATH || DEFAULT_USUARIOS_PATH;
 }
 
 function crearUsuarioPublico(usuario: Usuario): UsuarioPublico {

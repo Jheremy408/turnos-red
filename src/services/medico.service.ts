@@ -31,6 +31,10 @@ const medicos: Medico[] = [
   },
 ];
 
+export function establecerMedicos(datos: Medico[]): void {
+  medicos.splice(0, medicos.length, ...datos.map((medico) => ({ ...medico })));
+}
+
 export function obtenerMedicos(filtros: FiltrosMedico = {}): Medico[] {
   return medicos.filter(
     (medico) =>

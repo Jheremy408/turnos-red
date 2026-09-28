@@ -15,7 +15,9 @@ import turnoRoutes from "./routes/turno.routes.js";
 
 const app = express();
 
-app.use(morgan(":method :url :status :response-time ms"));
+if (process.env.NODE_ENV !== "test") {
+  app.use(morgan(":method :url :status :response-time ms"));
+}
 app.use(express.json());
 app.use(express.static("public"));
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
