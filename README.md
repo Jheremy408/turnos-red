@@ -1,6 +1,6 @@
 # TurnosRed
 
-TurnosRed es una API REST académica desarrollada con Node.js, TypeScript y Express para administrar turnos médicos y profesionales de salud. El proyecto aplica una arquitectura por capas, validación con Zod, manejo centralizado de errores, filtros mediante query parameters y notificaciones en tiempo real con EventEmitter y Socket.IO.
+TurnosRed es una API REST académica desarrollada con Node.js, TypeScript y Express 4 para administrar turnos médicos y profesionales de salud. El proyecto aplica una arquitectura por capas, validación con Zod, autenticación JWT, manejo centralizado de errores, logging estructurado, pruebas automatizadas, filtros mediante query parameters y notificaciones en tiempo real con EventEmitter y Socket.IO.
 
 Los turnos iniciales se cargan desde un archivo JSON. Durante la ejecución, tanto los turnos como los médicos se administran en memoria, por lo que las modificaciones realizadas mediante la API no persisten después de reiniciar el servidor.
 
@@ -10,6 +10,7 @@ Los turnos iniciales se cargan desde un archivo JSON. Durante la ejecución, tan
 - npm para instalar dependencias y ejecutar los scripts.
 - Git para clonar y versionar el proyecto.
 - Postman para importar la colección, ejecutar sus pruebas y trabajar con los ejemplos del Mock Server.
+- Nginx para Windows, opcional, para validar el despliegue mediante proxy inverso.
 
 ## Instalación y ejecución
 
@@ -62,29 +63,100 @@ npm run format
 | `npm start`      | `node dist/server.js`            | Inicia la aplicación compilada; requiere ejecutar antes `npm run build`.         |
 | `npm run dev`    | `node --watch dist/server.js`    | Observa el servidor compilado. No compila automáticamente los cambios de `src/`. |
 | `npm run lint`   | `eslint . --ext .ts`             | Comprueba las reglas de ESLint para TypeScript.                                  |
+| `npm test`       | `jest --coverage --runInBand`     | Ejecuta las pruebas automatizadas y genera el reporte de cobertura.              |
 | `npm run format` | `prettier --write "src/**/*.ts"` | Formatea los archivos TypeScript dentro de `src/`.                               |
 
 ## Variables de entorno
 
 Las variables públicas de configuración se encuentran en `.env.example`:
 
-| Variable    | Valor de ejemplo     | Descripción                                                   |
-| ----------- | -------------------- | ------------------------------------------------------------- |
-| `PORT`      | `3000`               | Puerto en el que escucha el servidor HTTP.                    |
-| `DATA_PATH` | `./data/turnos.json` | Ruta del archivo JSON usado para cargar los turnos iniciales. |
+| Variable          | Valor de ejemplo                    | Descripción                                                                 |
+| ----------------- | ----------------------------------- | --------------------------------------------------------------------------- |
+| `PORT`            | `3000`                              | Puerto en el que escucha el servidor HTTP.                                  |
+| `DATA_PATH`       | `./data/turnos.json`                | Ruta del archivo JSON usado para cargar los turnos iniciales.               |
+| `USERS_DATA_PATH` | `./data/usuarios.json`              | Ruta del archivo JSON donde se persisten los usuarios registrados.          |
+| `JWT_SECRET`      | `replace-with-a-strong-secret`      | Secreto privado utilizado para firmar y verificar JWT. No posee valor seguro predeterminado. |
+| `LOG_LEVEL`       | `info`                              | Nivel de Pino. Si es válido, reemplaza el nivel predeterminado del entorno.  |
 
-Si no se definen, el servidor utiliza los valores de ejemplo como valores predeterminados. El archivo `.env` local no debe publicarse.
+`PORT`, `DATA_PATH` y `USERS_DATA_PATH` tienen valores predeterminados equivalentes a los ejemplos. `JWT_SECRET` debe configurarse para utilizar registro, login o rutas protegidas. En desarrollo, Pino usa `info` por defecto; en producción usa `error`, salvo que se indique un `LOG_LEVEL` válido.
+
+El archivo `.env` está ignorado por Git y no debe versionarse. `JWT_SECRET` debe ser fuerte, privado y distinto para cada entorno. Tampoco deben subirse tokens, contraseñas ni otras credenciales al repositorio.
+
+## Autenticación
+
+El flujo de autenticación es:
+
+```text
+Registro
+   ↓
+Login
+   ↓
+Obtención del JWT
+   ↓
+Authorization: Bearer <token>
+   ↓
+Operación protegida
+```
+
+### Registro
+
+`POST /auth/registro` recibe un email y una contraseña. El servidor normaliza el email, asigna siempre el rol `usuario` y persiste únicamente el hash generado con `bcryptjs`; nunca almacena ni devuelve la contraseña en texto plano.
+
+```http
+POST /auth/registro
+Content-Type: application/json
+
+{
+  "email": "actividad4@example.com",
+  "password": "Password123!"
+}
+```
+
+Un registro correcto responde `201 Created` con `id`, `email` y `rol`. Un email duplicado responde `409 RESOURCE_CONFLICT`.
+
+### Login y uso del token
+
+`POST /auth/login` compara la contraseña mediante bcrypt y devuelve un JWT firmado con HS256. El token contiene `id` y `rol`, y expira en una hora.
+
+```http
+POST /auth/login
+Content-Type: application/json
+
+{
+  "email": "actividad4@example.com",
+  "password": "Password123!"
+}
+```
+
+La respuesta exitosa tiene la forma `{"token":"<jwt>"}`. El valor recibido se envía en las escrituras protegidas:
+
+```http
+Authorization: Bearer <token>
+```
+
+Los `GET` de `/turnos` y `/medicos` son públicos. Los métodos `POST`, `PUT` y `DELETE` de ambos recursos requieren un token válido. La ausencia de token responde `401 AUTH_TOKEN_MISSING`; un token inválido o expirado responde `401 AUTH_TOKEN_INVALID`.
 
 ## Estructura del proyecto
 
 ```text
 turnos-red/
 ├── data/
-│   └── turnos.json
+│   ├── turnos.json
+│   └── usuarios.json
+├── docs/adr/
+│   ├── ADR-001-uso-de-openapi.md
+│   ├── ADR-002-adopcion-de-jwt.md
+│   ├── ADR-003-uso-de-nginx.md
+│   └── ADR-004-persistencia-en-archivos-json.md
 ├── public/
 │   └── index.html
 ├── src/
+│   ├── config/
+│   │   ├── env.ts
+│   │   ├── logger.ts
+│   │   └── swagger.ts
 │   ├── controllers/
+│   │   ├── auth.controller.ts
 │   │   ├── medico.controller.ts
 │   │   └── turno.controller.ts
 │   ├── errors/
@@ -92,11 +164,14 @@ turnos-red/
 │   ├── events/
 │   │   └── turno.events.ts
 │   ├── middlewares/
+│   │   ├── async-handler.middleware.ts
+│   │   ├── auth.middleware.ts
 │   │   └── error.middleware.ts
 │   ├── models/
 │   │   ├── medico.model.ts
 │   │   └── turno.model.ts
 │   ├── routes/
+│   │   ├── auth.routes.ts
 │   │   ├── medico.routes.ts
 │   │   └── turno.routes.ts
 │   ├── schemas/
@@ -104,49 +179,58 @@ turnos-red/
 │   │   ├── medico.schema.ts
 │   │   └── turno.schema.ts
 │   ├── services/
+│   │   ├── auth.service.ts
 │   │   ├── medico.service.ts
 │   │   └── turno.service.ts
 │   ├── utils/
 │   │   ├── ejemploCallback.ts
 │   │   └── normalizarTurno.ts
+│   ├── app.ts
 │   └── server.ts
+├── tests/
 ├── .env.example
-├── .nvmrc
-├── .prettierrc.json
-├── eslint.config.js
+├── jest.config.cjs
+├── nginx.conf
 ├── package-lock.json
 ├── package.json
 ├── tsconfig.json
 └── turnos-red.postman_collection.json
 ```
 
+- `config/`: centraliza configuración de entorno, Pino y OpenAPI.
 - `controllers/`: recibe las solicitudes HTTP y delega la lógica correspondiente.
 - `errors/`: define `AppError`, utilizado para errores esperados de la aplicación.
 - `events/`: contiene el bus interno basado en EventEmitter.
-- `middlewares/`: centraliza las respuestas de error HTTP.
-- `models/`: declara las interfaces de dominio de Turno y Médico.
+- `middlewares/`: contiene autenticación, propagación asíncrona y respuestas centralizadas de error.
+- `models/`: declara las estructuras de Turno, Médico y Usuario.
 - `routes/`: vincula cada endpoint con su controlador.
 - `schemas/`: contiene los schemas Zod de cuerpos y query parameters.
-- `services/`: concentra la carga inicial, el CRUD de médicos y la lógica de filtrado.
+- `services/`: contiene autenticación, carga inicial y operaciones de dominio sobre turnos y médicos.
 - `utils/`: contiene la normalización de los turnos históricos y el ejemplo de callbacks.
-- `server.ts`: configura Express, las rutas, los middlewares, el servidor HTTP y Socket.IO.
+- `app.ts`: construye y exporta Express sin abrir un puerto, lo que permite utilizar Supertest.
+- `server.ts`: carga el estado inicial, crea HTTP y Socket.IO e inicia el puerto.
+- `tests/`: contiene pruebas unitarias, de integración y E2E.
+- `nginx.conf`: configura el proxy inverso del puerto 80 al backend en el puerto 3000.
 - `dist/`: se genera con `npm run build` y no debe editarse manualmente.
 
 ## Arquitectura
 
 ### Diagrama de componentes
 
-El siguiente diagrama representa los componentes que existen actualmente y sus comunicaciones principales. Los turnos históricos se leen desde `data/turnos.json` durante el arranque; después de esa carga, los turnos y los médicos se administran exclusivamente en memoria.
+El siguiente diagrama resume los componentes principales. Los turnos históricos se leen desde `data/turnos.json` durante el arranque; después de esa carga, los turnos y los médicos se administran en memoria. Los usuarios se persisten en `data/usuarios.json`.
 
 ```mermaid
 flowchart LR
   HTTP["Cliente Web / Postman"]
   WS["Clientes WebSocket"]
   JSON["data/turnos.json"]
+  USERS_JSON["data/usuarios.json"]
 
   subgraph APP["Aplicación TurnosRed"]
-    EXPRESS["Express<br/>src/server.ts"]
+    EXPRESS["Express<br/>src/app.ts"]
+    SERVER["HTTP + Socket.IO<br/>src/server.ts"]
     ROUTES["Rutas Express<br/>src/routes"]
+    AUTH["Registro, login y<br/>verificarToken"]
     TURNO_CTRL["Controlador de Turnos<br/>src/controllers"]
     MEDICO_CTRL["Controlador de Médicos<br/>src/controllers"]
     ZOD["Validaciones Zod<br/>src/schemas"]
@@ -160,9 +244,12 @@ flowchart LR
   end
 
   HTTP <-->|"HTTP"| EXPRESS
+  SERVER --> EXPRESS
   EXPRESS --> ROUTES
+  ROUTES --> AUTH
   ROUTES --> TURNO_CTRL
   ROUTES --> MEDICO_CTRL
+  AUTH <-->|"lectura y escritura"| USERS_JSON
 
   TURNO_CTRL -->|"parse de body o query"| ZOD
   MEDICO_CTRL -->|"parse de body o query"| ZOD
@@ -186,7 +273,7 @@ flowchart LR
   ZOD -.->|"ZodError"| ERRORS
   TURNO_CTRL -.->|"AppError"| ERRORS
   MEDICO_CTRL -.->|"AppError"| ERRORS
-  ERRORS -->|"respuesta 400, 404 o 500"| HTTP
+  ERRORS -->|"respuesta uniforme 4xx o 500"| HTTP
 ```
 
 No existe una capa de repositorios ni una base de datos. Tampoco existe `medicos.json`: los médicos iniciales están definidos en `medico.service.ts` y el servicio gestiona su arreglo en memoria. Las operaciones POST, PUT y DELETE de turnos modifican el estado en memoria, pero no escriben `data/turnos.json`.
@@ -200,6 +287,7 @@ sequenceDiagram
   autonumber
   participant C as Cliente
   participant ER as Express / Router
+  participant AT as verificarToken
   participant CT as Controlador Turno
   participant Z as Zod
   participant TS as turno.service
@@ -210,39 +298,47 @@ sequenceDiagram
   participant WS as Clientes WebSocket
   participant EM as Middleware de errores
 
-  C->>ER: POST /turnos
-  ER->>CT: crearTurno(req, res)
-  CT->>Z: turnoSchema.parse(req.body)
+  C->>ER: POST /turnos + Bearer JWT
+  ER->>AT: verificarToken(req)
 
-  alt La validación Zod falla
-    Z-->>CT: Lanza ZodError
-    CT-->>EM: Propaga el error de validación
-    EM-->>C: HTTP 400 + ErrorResponse
-  else El cuerpo es válido
-    Z-->>CT: nuevoTurno validado
-    CT->>TS: validarMedicoAsignado(medicoId)
-    TS->>MS: existeMedico(medicoId)
-    MS-->>TS: true o false
+  alt Token ausente, inválido o expirado
+    AT-->>EM: Propaga AppError
+    EM-->>C: HTTP 401 + ErrorResponse
+  else Token válido
+    AT-->>ER: req.user = { id, rol }
+    ER->>CT: crearTurno(req, res)
+    CT->>Z: turnoSchema.parse(req.body)
 
-    alt El médico no existe
-      TS-->>CT: Lanza MEDICO_ID_INVALID
-      CT-->>EM: Propaga AppError
-      EM-->>C: HTTP 400 + ErrorResponse
-    else El médico existe
-      TS-->>CT: Validación completada
-      CT->>MT: Comprobar si el ID está duplicado
+    alt La validación Zod falla
+      Z-->>CT: Lanza ZodError
+      CT-->>EM: Propaga el error de validación
+      EM-->>C: HTTP 400 VALIDATION_ERROR
+    else El cuerpo es válido
+      Z-->>CT: nuevoTurno validado
+      CT->>TS: validarMedicoAsignado(medicoId)
+      TS->>MS: existeMedico(medicoId)
+      MS-->>TS: true o false
 
-      alt El ID ya existe
-        MT-->>CT: ID duplicado
-        CT-->>EM: Lanza TURNO_ID_ALREADY_EXISTS
-        EM-->>C: HTTP 400 + ErrorResponse
-      else El ID está disponible
-        MT-->>CT: ID disponible
-        CT->>MT: push(nuevoTurno)
-        CT->>EV: emit("turno:creado", nuevoTurno)
-        EV->>IO: Listener registrado en server.ts
-        IO-->>WS: Evento "turno:nuevo"
-        CT-->>C: HTTP 201 Created + turno
+      alt El médico no existe
+        TS-->>CT: Lanza RESOURCE_NOT_FOUND
+        CT-->>EM: Propaga AppError
+        EM-->>C: HTTP 404 + ErrorResponse
+      else El médico existe
+        TS-->>CT: Validación completada
+        CT->>MT: Comprobar si el ID está duplicado
+
+        alt El ID ya existe
+          MT-->>CT: ID duplicado
+          CT-->>EM: Lanza RESOURCE_CONFLICT
+          EM-->>C: HTTP 409 + ErrorResponse
+        else El ID está disponible
+          MT-->>CT: ID disponible
+          CT->>MT: push(nuevoTurno)
+          CT->>EV: emit("turno:creado", nuevoTurno)
+          EV->>IO: Listener registrado en server.ts
+          IO-->>WS: Evento "turno:nuevo"
+          CT-->>C: HTTP 201 Created + turno
+        end
       end
     end
   end
@@ -283,9 +379,9 @@ Los registros históricos sin `medicoId` se normalizan durante la carga inicial 
 | -------- | ------------- | -------------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------- |
 | `GET`    | `/turnos`     | Listar todos los turnos o aplicar filtros.   | `200`, `400`        | No corresponde.                                                                          |
 | `GET`    | `/turnos/:id` | Obtener un turno por ID.                     | `200`, `400`, `404` | No corresponde.                                                                          |
-| `POST`   | `/turnos`     | Crear un turno.                              | `201`, `400`        | Modelo Turno completo.                                                                   |
-| `PUT`    | `/turnos/:id` | Reemplazar completamente un turno existente. | `200`, `400`, `404` | Todos los campos salvo que `id` puede omitirse; si se envía, debe coincidir con la ruta. |
-| `DELETE` | `/turnos/:id` | Eliminar un turno.                           | `204`, `400`, `404` | No corresponde; el éxito no devuelve cuerpo.                                             |
+| `POST`   | `/turnos`     | Crear un turno; requiere JWT.                 | `201`, `400`, `401`, `404`, `409` | Modelo Turno completo.                                                                   |
+| `PUT`    | `/turnos/:id` | Reemplazar un turno; requiere JWT.            | `200`, `400`, `401`, `404` | Todos los campos salvo que `id` puede omitirse; si se envía, debe coincidir con la ruta. |
+| `DELETE` | `/turnos/:id` | Eliminar un turno; requiere JWT.              | `204`, `400`, `401`, `404` | No corresponde; el éxito no devuelve cuerpo.                                             |
 
 Ejemplo de cuerpo válido para POST:
 
@@ -322,9 +418,9 @@ Los médicos se almacenan en memoria y se inicializan con profesionales de ejemp
 | -------- | -------------- | --------------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------- |
 | `GET`    | `/medicos`     | Listar todos los médicos o aplicar filtros.   | `200`, `400`        | No corresponde.                                                                          |
 | `GET`    | `/medicos/:id` | Obtener un médico por ID.                     | `200`, `400`, `404` | No corresponde.                                                                          |
-| `POST`   | `/medicos`     | Crear un médico.                              | `201`, `400`        | Modelo Médico completo.                                                                  |
-| `PUT`    | `/medicos/:id` | Reemplazar completamente un médico existente. | `200`, `400`, `404` | Todos los campos salvo que `id` puede omitirse; si se envía, debe coincidir con la ruta. |
-| `DELETE` | `/medicos/:id` | Eliminar un médico.                           | `204`, `400`, `404` | No corresponde; el éxito no devuelve cuerpo.                                             |
+| `POST`   | `/medicos`     | Crear un médico; requiere JWT.                 | `201`, `400`, `401`, `409` | Modelo Médico completo.                                                                  |
+| `PUT`    | `/medicos/:id` | Reemplazar un médico; requiere JWT.            | `200`, `400`, `401`, `404` | Todos los campos salvo que `id` puede omitirse; si se envía, debe coincidir con la ruta. |
+| `DELETE` | `/medicos/:id` | Eliminar un médico; requiere JWT.              | `204`, `400`, `401`, `404` | No corresponde; el éxito no devuelve cuerpo.                                             |
 
 Ejemplo de cuerpo válido para POST:
 
@@ -404,15 +500,93 @@ Toda respuesta de error conserva las propiedades `status`, `message`, `code` y `
 
 Códigos de error utilizados:
 
-- `INVALID_ID`
 - `VALIDATION_ERROR`
-- `TURNO_NOT_FOUND`
-- `TURNO_ID_ALREADY_EXISTS`
-- `MEDICO_NOT_FOUND`
-- `MEDICO_ID_ALREADY_EXISTS`
-- `MEDICO_ID_INVALID`
-- `ROUTE_NOT_FOUND`
+- `AUTH_TOKEN_MISSING`
+- `AUTH_TOKEN_INVALID`
+- `AUTH_CREDENTIALS_INVALID`
+- `RESOURCE_NOT_FOUND`
+- `RESOURCE_CONFLICT`
+- `INVALID_ID`
 - `INTERNAL_SERVER_ERROR`
+
+Los errores inesperados se registran internamente, pero la respuesta HTTP 500 nunca incluye stack traces, rutas internas ni detalles sensibles.
+
+## Logging
+
+- Morgan registra solicitudes HTTP con método, ruta, estado y tiempo de respuesta, sin cuerpos ni headers de autorización.
+- Pino registra eventos internos como JSON estructurado para autenticación, operaciones de turnos y médicos, arranque del servidor y errores inesperados.
+- `LOG_LEVEL` permite establecer un nivel válido. El valor predeterminado es `info` en desarrollo y `error` en producción.
+- Pino redacta campos sensibles como `password`, `passwordHash`, `token` y `Authorization` con `[REDACTED]`.
+
+## Configuraciones de seguridad
+
+- Las contraseñas se persisten únicamente como hashes bcrypt.
+- Los JWT utilizan HS256, incluyen `id` y `rol`, y expiran en una hora.
+- Las rutas protegidas esperan el esquema `Authorization: Bearer <token>`.
+- `JWT_SECRET` se obtiene del entorno y no tiene un valor inseguro predeterminado.
+- Los logs estructurados redactan contraseñas, hashes, tokens y autorización.
+- Los errores HTTP 500 no exponen detalles internos al cliente.
+- `.env` está ignorado por Git y no debe contener secretos destinados a ser compartidos.
+
+## Pruebas
+
+La suite utiliza Jest como ejecutor, `ts-jest` para TypeScript y Supertest para probar la aplicación Express importando `src/app.ts`, sin abrir un puerto real ni iniciar Socket.IO.
+
+```bash
+npm test
+```
+
+La suite incluye:
+
+- pruebas unitarias directas sobre servicios con mocks y stubs;
+- pruebas HTTP de integración para respuestas `201`, `400` y `401`;
+- un flujo E2E secuencial de registro, login, creación, lectura, actualización y eliminación de un turno;
+- aislamiento del archivo de usuarios y restauración del estado mutable entre pruebas.
+
+`npm test` genera cobertura enfocada en `src/services/**/*.ts`. El requisito mínimo es 60 % para statements, branches, functions y lines. La verificación actual contiene 5 suites y 14 tests aprobados, con todas las métricas globales de servicios por encima del 60 %.
+
+## Despliegue
+
+El escenario documentado utiliza Nginx como proxy inverso:
+
+```text
+Cliente
+   ↓ HTTP :80
+Nginx
+   ↓ HTTP :3000
+Node.js / Express
+```
+
+El archivo `nginx.conf` está en la raíz del proyecto. Nginx escucha en el puerto 80 y reenvía las solicitudes a `http://127.0.0.1:3000`, preservando `Host`, `X-Real-IP` y `X-Forwarded-For`. También utiliza HTTP/1.1 y los headers `Upgrade` y `Connection` para mantener compatibilidad con WebSocket y Socket.IO.
+
+Esta configuración permite acceder, por ejemplo, a `/turnos`, `/medicos`, `/auth/login` y `/api-docs/` mediante `http://localhost/`. No configura HTTPS, certificados ni balanceo de carga.
+
+### Nginx nativo en Windows
+
+Con la aplicación Node.js ya iniciada en el puerto 3000, la configuración puede validarse y cargarse indicando como prefijo el directorio de Nginx y como `-c` la ruta absoluta al archivo del proyecto. Se deben reemplazar las rutas genéricas por las del equipo:
+
+```powershell
+& 'C:\ruta\a\nginx\nginx.exe' -t `
+  -p 'C:/ruta/a/nginx/' `
+  -c 'C:/ruta/al/proyecto/turnos-red/nginx.conf'
+
+& 'C:\ruta\a\nginx\nginx.exe' `
+  -p 'C:/ruta/a/nginx/' `
+  -c 'C:/ruta/al/proyecto/turnos-red/nginx.conf'
+```
+
+Después de cambiar la configuración, se puede ejecutar el mismo comando con `-s reload`. Para una detención ordenada se utiliza `-s quit`.
+
+## Decisiones arquitectónicas
+
+Los ADR se encuentran en `docs/adr/`:
+
+| ADR | Estado | Decisión |
+| --- | ------ | -------- |
+| ADR-001 — Uso de OpenAPI | Aceptado | OpenAPI 3.0.3 y Swagger UI representan el contrato REST. |
+| ADR-002 — Adopción de JWT | Aceptado | bcrypt y JWT protegen las operaciones de escritura. |
+| ADR-003 — Uso de Nginx | Aceptado | Nginx publica el puerto 80 y actúa como proxy hacia Node en el puerto 3000. |
+| ADR-004 — Persistencia en archivos JSON | Aceptado | Se documenta el estado temporal basado en JSON/memoria y la futura migración a una base de datos. |
 
 ## EventEmitter y Socket.IO
 
@@ -428,20 +602,22 @@ La página `public/index.html` se conecta al servidor mediante Socket.IO y escuc
 
 ## Colección de Postman
 
-El repositorio incluye `turnos-red.postman_collection.json`, una colección importable compatible con Postman Collection v2.1 y organizada en las carpetas Turnos, Médicos, Validaciones y errores, y Query Params.
+El repositorio incluye `turnos-red.postman_collection.json`, una colección importable compatible con Postman Collection v2.1 y organizada en las carpetas Autenticación, Turnos, Médicos, Validaciones y errores, y Query Params.
 
 La colección fue preparada para ejecutar en Postman:
 
 - CRUD de Turnos.
 - CRUD de Médicos.
+- Registro, login y captura automática del JWT en la variable `authToken`.
+- Bearer Token en todas las operaciones de escritura.
 - Filtros mediante query parameters.
-- Casos de error HTTP `400` y `404`.
+- Casos de error HTTP `400`, `401`, `404` y `409`.
 - Scripts de Tests para códigos HTTP, JSON, propiedades, arreglos y filtros.
 - Variables de colección e IDs dinámicos para los recursos creados.
 - Saved Responses con ejemplos representativos.
 - Ejemplos utilizables al configurar un Mock Server.
 
-Antes de ejecutar la colección, debe iniciarse la API y verificarse que la variable `baseUrl` apunte a `http://localhost:3000`. Los ciclos que actualizan y eliminan recursos creados deben ejecutarse en el orden POST, PUT y DELETE.
+Antes de ejecutar la colección, debe iniciarse la API y verificarse que la variable `baseUrl` apunte a `http://localhost:3000`. Para las escrituras debe ejecutarse primero Registro y luego Login; el script de login guarda `authToken` sin incorporar un JWT fijo a la colección. Los ciclos que actualizan y eliminan recursos creados deben ejecutarse en el orden POST, PUT y DELETE.
 
 ## Uso de Inteligencia Artificial
 
@@ -461,3 +637,12 @@ Antes de ejecutar la colección, debe iniciarse la API y verificarse que la vari
 | Diagramas Mermaid                  | Codex           | Documentar la arquitectura real y la secuencia de `POST /turnos` sin inventar persistencia ni capas inexistentes.        | Diagramas de componentes y secuencia integrados en el README.                                                      | Comprobación factual contra servidor, controladores, servicios, eventos y memoria.  |
 | Registros ADR                      | Codex           | Registrar la adopción de OpenAPI y analizar JWT únicamente como propuesta futura.                                       | ADR-001 Aceptado y ADR-002 Propuesto con contexto, consecuencias, alternativas, limitaciones e impacto.            | Revisión manual de estados, fecha y ausencia de implementación de JWT.              |
 | Verificación de coherencia         | Codex           | Comparar código, Zod, OpenAPI, Postman, Mermaid y ADR, corrigiendo solo divergencias documentales demostradas.           | Matriz de coherencia, corrección mínima de una respuesta guardada y fuente del informe de evidencias.              | Pruebas HTTP, validación OpenAPI, revisión de Postman y controles de build y lint.   |
+| Actividad 4 — auditoría inicial | Codex | Auditar completamente el repositorio antes de modificarlo y contrastarlo con todos los requisitos de la Actividad 4. | Diagnóstico de arquitectura, dependencias, errores, autenticación, logging, pruebas, documentación y riesgos. | El usuario revisó el diagnóstico y autorizó la implementación por etapas. |
+| Actividad 4 — Express 4 y separación app/server | Codex | Migrar a Express 4 y separar la aplicación importable del proceso HTTP sin alterar rutas ni Socket.IO. | `src/app.ts` importable y `src/server.ts` responsable de HTTP, Socket.IO y `listen()`. | El usuario ejecutó y verificó build, lint, arranque, endpoints y Swagger. |
+| Actividad 4 — errores y asincronía | Codex | Normalizar códigos de dominio, conservar respuestas uniformes y preparar Express 4 para promesas rechazadas. | Catálogo de errores actualizado y `asyncHandler` reutilizable. | El usuario verificó casos 400, 404, 409, JSON inválido y propagación asíncrona. |
+| Actividad 4 — autenticación JWT | Codex | Implementar registro, login, bcrypt, JWT y protección de escrituras sin autorización diferenciada por rol. | Usuarios con hash bcrypt, JWT HS256 de una hora, `verificarToken` y rutas protegidas. | El usuario validó el flujo, inspeccionó claims y confirmó que no quedaron secretos ni credenciales de prueba. |
+| Actividad 4 — Morgan y Pino | Codex | Añadir logging HTTP y eventos internos estructurados con redacción de información sensible. | Morgan para solicitudes y una instancia central de Pino con niveles por entorno y redacción. | El usuario revisó logs reales y comprobó que no contenían contraseñas, hashes, JWT ni Authorization. |
+| Actividad 4 — Jest y Supertest | Codex | Crear una suite determinista con unitarias, integración, E2E y cobertura de servicios. | Configuración Jest/ts-jest, estado aislado, 5 suites y 14 tests. | El usuario ejecutó `npm test` y verificó cobertura superior al 60 % y ausencia de handles abiertos. |
+| Actividad 4 — Swagger y Postman | Codex | Documentar autenticación y seguridad Bearer, y actualizar la colección sin tokens reales. | OpenAPI con `bearerAuth`, endpoints `/auth`, respuestas actuales y colección con captura automática de `authToken`. | El usuario comprobó Swagger UI, la colección v2.1 y el flujo HTTP autenticado. |
+| Actividad 4 — Nginx y ADRs | Codex | Configurar el proxy inverso y documentar las decisiones de despliegue y persistencia. | `nginx.conf`, ADR-003 y ADR-004 con soporte WebSocket y riesgos reales de JSON/memoria. | El usuario validó Nginx nativo en Windows y revisó las decisiones arquitectónicas. |
+| Actividad 4 — revisión documental final | Codex | Actualizar ADR-002, README y variables de entorno de acuerdo con la implementación terminada. | ADR-002 aceptado y documentación consolidada de autenticación, pruebas, logging, seguridad y despliegue. | La IA apoyó análisis, redacción y revisión; la ejecución y verificación final quedaron a cargo del usuario. |
