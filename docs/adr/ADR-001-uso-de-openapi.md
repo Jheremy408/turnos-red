@@ -57,7 +57,8 @@ Costos y riesgos:
 - OpenAPI documenta el contrato HTTP, pero no sustituye las pruebas unitarias, de integración ni las pruebas de Postman.
 - La generación de la especificación no garantiza por sí sola que la implementación, Zod y OpenAPI permanezcan sincronizados.
 - EventEmitter y los eventos de Socket.IO no forman parte del contrato REST principal descrito por OpenAPI.
-- TurnosRed no posee autenticación ni autorización actualmente, por lo que la especificación no declara seguridad.
+- TurnosRed utiliza autenticación mediante JWT: las operaciones POST, PUT y DELETE de Turnos y Médicos requieren un Bearer JWT válido, mientras que los GET continúan siendo públicos.
+- La especificación OpenAPI documenta `bearerAuth` y declara el requisito de seguridad únicamente en las operaciones protegidas.
 - La documentación no debe anticipar rutas, filtros, persistencia o respuestas que el backend todavía no implemente.
 - La exactitud del contrato continúa dependiendo de la revisión humana y de futuras verificaciones automatizadas.
 
